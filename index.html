@@ -17,6 +17,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=MedievalSharp&display=swap" rel="stylesheet">
 
   <style>
+    [x-cloak] { display: none !important; }
     body { background-color: #0f0d0a; color: #e2d2b4; font-family: 'MedievalSharp', cursive, serif; }
     .font-title { font-family: 'Cinzel Decorative', serif; }
     .gold-border { border: 1px solid #b8860b; box-shadow: 0 0 10px rgba(184, 134, 11, 0.15); }
@@ -26,243 +27,277 @@
     ::-webkit-scrollbar-thumb { background: #3a2e1e; border-radius: 3px; }
   </style>
 </head>
-<body class="p-3 md:p-5 min-h-screen flex flex-col justify-between" x-data="saldosApp()">
+<body class="p-3 md:p-5 min-h-screen flex flex-col justify-between relative" x-data="saldosApp()" x-cloak>
 
-  <div class="max-w-4xl mx-auto w-full space-y-5">
-    
-    <!-- HEADER ÉPICO -->
-    <header class="flex justify-between items-center border-b border-[#3a2e1e] pb-3">
-      <div>
-        <h1 class="font-title text-xl md:text-2xl text-[#d4af37] tracking-wider drop-shadow-md">
-          💰 O Tesouro de Erebor
-        </h1>
-        <p class="text-[11px] md:text-xs text-[#a39274]">
-          Gestão de Saldos & Disponibilidade Financeira dos Cofres
-        </p>
-      </div>
+<div class="max-w-4xl mx-auto w-full space-y-5">
 
-      <button @click="carregarDados()" 
-        class="bg-[#1c1712] hover:bg-[#2e2316] text-[#d4af37] text-xs font-semibold py-1.5 px-3 rounded border border-[#b8860b]/40 flex items-center gap-1.5 transition cursor-pointer active:scale-95">
-        <span :class="carregando ? 'animate-spin' : ''">⚡</span>
-        <span x-text="carregando ? 'Sincronizando...' : 'Sincronizar'"></span>
+<!-- HEADER ÉPICO -->
+<header class="flex justify-between items-center border-b border-[#3a2e1e] pb-3">
+  <div>
+    <h1 class="font-title text-xl md:text-2xl text-[#d4af37] tracking-wider drop-shadow-md">
+      💰 O Tesouro de Erebor
+    </h1>
+    <p class="text-[11px] md:text-xs text-[#a39274]">
+      Gestão de Saldos & Disponibilidade Financeira dos Cofres
+    </p>
+  </div>
+
+  <button @click="carregarDados()"
+    class="bg-[#1c1712] hover:bg-[#2e2316] text-[#d4af37] text-xs font-semibold py-1.5 px-3 rounded border border-[#b8860b]/40 flex items-center gap-1.5 transition cursor-pointer active:scale-95">
+    <span :class="carregando ? 'animate-spin' : ''">⚡</span>
+    <span x-text="carregando ? 'Sincronizando...' : 'Sincronizar'"></span>
+  </button>
+</header>
+
+<!-- CARD TOTALIZADOR CENTRAL -->
+<section class="bg-[#181410] p-4 rounded-lg gold-border flex justify-between items-center">
+  <div>
+    <span class="text-xs text-[#a39274]">💎 Total Disponível em Cofres</span>
+    <div class="text-2xl font-bold text-[#d4af37] mt-1" x-text="formatarMoeda(calcularTotal())"></div>
+  </div>
+  <div class="text-right">
+    <span class="text-[10px] bg-[#2e2316] text-[#a39274] px-2.5 py-1 rounded-full border border-[#b8860b]/30">
+      <span x-text="saldos.length"></span> Cofres Registrados
+    </span>
+  </div>
+</section>
+
+<!-- FORMULÁRIO DE REGISTRO / EDIÇÃO DE SALDO -->
+<section class="bg-[#181410] p-4 rounded-lg gold-border space-y-3">
+  <h2 class="text-sm text-[#d4af37] font-semibold flex items-center justify-between">
+    <span class="flex items-center gap-2">
+      <span>✍️</span>
+      <span x-text="editandoId ? 'Atualizar Saldo do Cofre' : 'Registrar Saldo em Cofre'"></span>
+    </span>
+    <button x-show="editandoId" @click="cancelarEdicao()" class="text-xs text-[#8b0000] hover:underline">Cancelar Edição</button>
+  </h2>
+
+  <div x-show="mensagemErro" x-transition class="text-xs text-red-400 text-center font-bold pt-1 mb-2">
+    ⚠️ <span x-text="mensagemErro"></span>
+  </div>
+
+  <form @submit.prevent="salvarSaldo()" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <!-- Seleção do Banco / Conta (Carregado do Módulo 01) -->
+    <div>
+      <label class="block text-[11px] text-[#a39274] mb-1">Conta / Banco (Módulo 01)</label>
+      <select x-model="contaSelecionada" required
+        class="w-full bg-[#0f0d0a] border border-[#3a2e1e] text-[#e2d2b4] text-xs rounded p-2.5 outline-none elvish-glow transition">
+        <option value="">Selecione a conta...</option>
+        <template x-for="c in contasCadastradas" :key="c.id">
+          <option :value="c.nome" x-text="c.nome"></option>
+        </template>
+      </select>
+    </div>
+
+    <!-- Valor do Saldo -->
+    <div>
+      <label class="block text-[11px] text-[#a39274] mb-1">Valor Atual (R$)</label>
+      <input type="number" step="0.01" x-model="valorInput" placeholder="Ex: 1500.00" required
+        class="w-full bg-[#0f0d0a] border border-[#3a2e1e] text-[#e2d2b4] text-xs rounded p-2.5 outline-none elvish-glow transition">
+    </div>
+
+    <!-- Botão Ação -->
+    <div class="flex items-end">
+      <button type="submit"
+        class="w-full bg-[#b8860b] hover:bg-[#d4af37] text-[#0f0d0a] font-bold py-2.5 px-4 text-xs rounded transition duration-200 cursor-pointer active:scale-95">
+        <span x-text="editandoId ? 'Atualizar Saldo' : '⚔️ Guardar no Cofre'"></span>
       </button>
-    </header>
+    </div>
+  </form>
 
-    <!-- CARD TOTALIZADOR CENTRAL -->
-    <section class="bg-[#181410] p-4 rounded-lg gold-border flex justify-between items-center">
-      <div>
-        <span class="text-xs text-[#a39274]">💎 Total Disponível em Cofres</span>
-        <div class="text-2xl font-bold text-[#d4af37] mt-1" x-text="formatarMoeda(calcularTotal())"></div>
-      </div>
-      <div class="text-right">
-        <span class="text-[10px] bg-[#2e2316] text-[#a39274] px-2.5 py-1 rounded-full border border-[#b8860b]/30">
-          <span x-text="saldos.length"></span> Cofres Registrados
-        </span>
-      </div>
-    </section>
+  <!-- Alerta se não houver contas no Módulo 01 -->
+  <div x-show="contasCadastradas.length === 0" class="text-xs text-amber-400 text-center font-bold pt-1">
+    💡 Nenhuma conta cadastrada na Central de Entidades (Módulo 01). Cadastre uma lá para selecionar aqui.
+  </div>
+</section>
 
-    <!-- FORMULÁRIO DE REGISTRO / EDIÇÃO DE SALDO -->
-    <section class="bg-[#181410] p-4 rounded-lg gold-border space-y-3">
-      <h2 class="text-sm text-[#d4af37] font-semibold flex items-center justify-between">
-        <span class="flex items-center gap-2">
-          <span>✍️</span> 
-          <span x-text="editandoId ? 'Atualizar Saldo do Cofre' : 'Registrar Saldo em Cofre'"></span>
-        </span>
-        <button x-show="editandoId" @click="cancelarEdicao()" class="text-xs text-[#8b0000] hover:underline">Cancelar Edição</button>
-      </h2>
+<!-- LISTA DE SALDOS REGISTRADOS -->
+<section class="bg-[#14100c] p-4 rounded-lg border border-[#2e2316] space-y-2.5">
+  <h2 class="text-sm text-[#d4af37] font-semibold flex items-center justify-between border-b border-[#2e2316] pb-1.5">
+    <span class="flex items-center gap-2">💰 Cofres Ativos</span>
+    <span class="text-[10px] bg-[#2e2316] text-[#a39274] px-2 py-0.5 rounded-full" x-text="saldos.length"></span>
+  </h2>
 
-      <form @submit.prevent="salvarSaldo()" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <!-- Seleção do Banco / Conta (Carregado do Módulo 01) -->
-        <div>
-          <label class="block text-[11px] text-[#a39274] mb-1">Conta / Banco (Módulo 01)</label>
-          <select x-model="contaSelecionada" required
-            class="w-full bg-[#0f0d0a] border border-[#3a2e1e] text-[#e2d2b4] text-xs rounded p-2.5 outline-none elvish-glow transition">
-            <option value="">Selecione a conta...</option>
-            <template x-for="c in contasCadastradas" :key="c.id">
-              <option :value="c.nome" x-text="c.nome"></option>
-            </template>
-          </select>
+  <div class="space-y-2 text-xs max-h-60 overflow-y-auto pr-1">
+    <template x-for="saldo in saldos" :key="saldo.id">
+      <div class="bg-[#1c1712] p-2.5 rounded border-l-2 border-[#b8860b] flex justify-between items-center gap-2">
+        <div class="flex items-center gap-2 overflow-hidden">
+          <span class="text-[10px] bg-[#2e2316] text-[#a39274] px-2 py-0.5 rounded whitespace-nowrap" x-text="saldo.contaNomeSnapshot"></span>
+          <span class="text-[#e2d2b4] truncate font-bold" x-text="formatarMoeda(saldo.valor)"></span>
         </div>
 
-        <!-- Valor do Saldo -->
-        <div>
-          <label class="block text-[11px] text-[#a39274] mb-1">Valor Atual (R$)</label>
-          <input type="number" step="0.01" x-model="valorInput" placeholder="Ex: 1500.00" required
-            class="w-full bg-[#0f0d0a] border border-[#3a2e1e] text-[#e2d2b4] text-xs rounded p-2.5 outline-none elvish-glow transition">
+        <div class="flex items-center gap-2 shrink-0">
+          <button @click="prepararEdicao(saldo)" title="Editar" class="text-[#d4af37] hover:text-[#fff] text-xs font-bold">✎</button>
+          <button @click="excluirSaldo(saldo.id)" title="Excluir" class="text-[#8b0000] hover:text-[#ff4500] text-xs font-bold">✕</button>
         </div>
-
-        <!-- Botão Ação -->
-        <div class="flex items-end">
-          <button type="submit" 
-            class="w-full bg-[#b8860b] hover:bg-[#d4af37] text-[#0f0d0a] font-bold py-2.5 px-4 text-xs rounded transition duration-200 cursor-pointer active:scale-95">
-            <span x-text="editandoId ? 'Atualizar Saldo' : '⚔️ Guardar no Cofre'"></span>
-          </button>
-        </div>
-      </form>
-
-      <!-- Alerta se não houver contas no Módulo 01 -->
-      <template x-if="contasCadastradas.length === 0">
-        <p class="text-[11px] text-[#e5a93c] italic pt-1">
-          💡 Dica: Cadastre suas contas na <strong>Central de Cadastros Base (Módulo 01)</strong> para elas aparecerem na lista acima.
-        </p>
-      </template>
-    </section>
-
-    <!-- LISTA DE COFRES & SALDOS -->
-    <section class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-      <template x-for="s in saldos" :key="s.id">
-        <div class="bg-[#14100c] p-3.5 rounded-lg border border-[#2e2316] flex flex-col justify-between space-y-2">
-          <div class="flex justify-between items-start">
-            <div class="flex items-center gap-1.5">
-              <span class="text-base">🏦</span>
-              <span class="font-bold text-sm text-[#e2d2b4]" x-text="s.conta"></span>
-            </div>
-            
-            <div class="flex items-center gap-2">
-              <button @click="prepararEdicao(s)" title="Editar Saldo" class="text-[#d4af37] hover:text-[#fff] text-xs font-bold">✎</button>
-              <button @click="excluirSaldo(s.id)" title="Excluir" class="text-[#8b0000] hover:text-[#ff4500] text-xs font-bold">✕</button>
-            </div>
-          </div>
-
-          <div class="border-t border-[#2e2316] pt-2 flex justify-between items-end">
-            <span class="text-[10px] text-[#6e5d4f]">Saldo Disponível</span>
-            <span class="text-base font-bold text-[#d4af37]" x-text="formatarMoeda(s.valor)"></span>
-          </div>
-        </div>
-      </template>
-    </section>
-
-    <template x-if="saldos.length === 0">
-      <div class="bg-[#14100c] p-6 rounded-lg border border-[#2e2316] text-center text-xs text-[#6e5d4f] italic">
-        Nenhum cofre com saldo cadastrado. Adicione um saldo acima para começar.
       </div>
     </template>
 
+    <template x-if="saldos.length === 0">
+      <p class="text-xs text-[#6e5d4f] italic py-2 text-center">Nenhum saldo registrado. Comece a guardar seu tesouro!</p>
+    </template>
   </div>
+</section>
 
-  <!-- FOOTER STATUS -->
-  <footer class="mt-6 text-center text-[9px] text-[#6e5d4f] border-t border-[#2e2316] pt-2">
-    <span>O Tesouro de Erebor • Sincronizado com Projeto Erebor OS</span>
-  </footer>
+</div>
 
-  <!-- SCRIPT FIREBASE COMPAT + ALPINE LOGIC -->
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyDU3mYKoWh8qE3wj6R5OKqhWwXMeefEl2g",
-      authDomain: "erebor-os.firebaseapp.com",
-      projectId: "erebor-os",
-      storageBucket: "erebor-os.firebasestorage.app",
-      messagingSenderId: "733641275906",
-      appId: "1:733641275906:web:d83dedfee8bc056a7e851b"
-    };
+<!-- MODAL DE CONFIRMAÇÃO DE EXCLUSÃO -->
+<div x-show="modalConfirmacaoAberto" x-cloak class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+  <div class="bg-[#181410] border border-[#b8860b] p-5 rounded-lg max-w-sm w-full space-y-4 shadow-2xl">
+    <h3 class="font-title text-sm text-[#d4af37] border-b border-[#3a2e1e] pb-2" x-text="modalConfirmacaoTitulo"></h3>
+    <p class="text-[#e2d2b4] text-xs" x-text="modalConfirmacaoMensagem"></p>
+    <div class="flex justify-end gap-2 pt-2">
+      <button type="button" @click="fecharModalConfirmacao()"
+        class="bg-[#2e2316] hover:bg-[#3a2e1e] text-[#a39274] font-bold py-2 px-3 text-xs rounded transition">Cancelar</button>
+      <button type="button" @click="executarAcaoConfirmada()"
+        class="bg-[#8b0000] hover:bg-red-700 text-white font-bold py-2 px-3 text-xs rounded transition active:scale-95">Confirmar</button>
+    </div>
+  </div>
+</div>
 
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+<!-- FOOTER STATUS -->
+<footer class="mt-6 text-center text-[9px] text-[#6e5d4f] border-t border-[#2e2316] pt-2">
+  <span>O Tesouro de Erebor • Projeto Erebor OS</span>
+</footer>
 
-    document.addEventListener('alpine:init', () => {
-      Alpine.data('saldosApp', () => ({
-        saldos: [],
-        contasCadastradas: [],
-        contaSelecionada: '',
-        valorInput: '',
-        editandoId: null,
-        carregando: false,
+<!-- SCRIPT FIREBASE COMPAT + ALPINE LOGIC -->
+<script>
+const firebaseConfig = {
+apiKey: "AIzaSyDU3mYKoWh8qE3wj6R5OKqhWwXMeefEl2g",
+authDomain: "erebor-os.firebaseapp.com",
+projectId: "erebor-os",
+storageBucket: "erebor-os.firebasestorage.app",
+messagingSenderId: "733641275906",
+appId: "1:733641275906:web:d83dedfee8bc056a7e851b"
+};
 
-        init() {
-          this.escutarContasDoModulo01();
-          this.escutarSaldos();
-        },
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-        // Busca as contas cadastradas no Módulo 01 (coleção "entidades")
-        escutarContasDoModulo01() {
-          db.collection("entidades").where("categoria", "==", "Conta").onSnapshot((snapshot) => {
-            const list = [];
-            snapshot.forEach((doc) => {
-              list.push({ id: doc.id, ...doc.data() });
-            });
-            this.contasCadastradas = list;
-          });
-        },
+document.addEventListener("alpine:init", () => {
+  Alpine.data("saldosApp", () => ({
+    saldos: [],
+    contasCadastradas: [],
+    contaSelecionada: "",
+    valorInput: "",
+    editandoId: null,
+    carregando: false,
+    mensagemErro: "",
+    modalConfirmacaoAberto: false,
+    modalConfirmacaoTitulo: "",
+    modalConfirmacaoMensagem: "",
+    modalConfirmacaoAcao: null,
 
-        // Escuta os saldos cadastrados na coleção "saldos"
-        escutarSaldos() {
-          db.collection("saldos").onSnapshot((snapshot) => {
-            const list = [];
-            snapshot.forEach((doc) => {
-              list.push({ id: doc.id, ...doc.data() });
-            });
-            this.saldos = list;
-            this.atualizarDashboardCentral();
-          });
-        },
+    init() {
+      this.escutarContasCadastradas();
+      this.escutarSaldos();
+    },
 
-        async salvarSaldo() {
-          if (!this.contaSelecionada || this.valorInput === '') return;
+    escutarContasCadastradas() {
+      db.collection("entidades").where("categoria", "==", "Conta").onSnapshot((snapshot) => {
+        this.contasCadastradas = snapshot.docs.map(doc => ({ id: doc.id, nome: doc.data().nome }));
+      }, (err) => console.warn("Erro ao carregar contas cadastradas:", err));
+    },
 
-          const dados = {
-            conta: this.contaSelecionada,
-            valor: parseFloat(this.valorInput) || 0,
-            atualizadoEm: new Date().toISOString()
-          };
+    escutarSaldos() {
+      db.collection("saldos").onSnapshot((snapshot) => {
+        this.saldos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      }, (err) => console.warn("Erro ao carregar saldos:", err));
+    },
 
-          try {
-            if (this.editandoId) {
-              await db.collection("saldos").doc(this.editandoId).update(dados);
-              this.cancelarEdicao();
-            } else {
-              await db.collection("saldos").add(dados);
-              this.contaSelecionada = '';
-              this.valorInput = '';
-            }
-          } catch(e) {
-            console.error("Erro ao salvar saldo:", e);
-          }
-        },
+    calcularTotal() {
+      return this.saldos.reduce((acc, saldo) => acc + parseFloat(saldo.valor || 0), 0);
+    },
 
-        prepararEdicao(s) {
-          this.editandoId = s.id;
-          this.contaSelecionada = s.conta;
-          this.valorInput = s.valor;
-        },
+    async salvarSaldo() {
+      if (!this.contaSelecionada || !this.valorInput) return;
+      this.carregando = true;
 
-        cancelarEdicao() {
-          this.editandoId = null;
-          this.contaSelecionada = '';
-          this.valorInput = '';
-        },
+      const contaObj = this.contasCadastradas.find(c => c.nome === this.contaSelecionada);
 
-        async excluirSaldo(id) {
-          try {
-            await db.collection("saldos").doc(id).delete();
-          } catch(e) {
-            console.error("Erro ao excluir saldo:", e);
-          }
-        },
+      const saldoData = {
+        contaId: contaObj?.id || null,
+        contaNomeSnapshot: this.contaSelecionada,
+        valor: parseFloat(this.valorInput) || 0,
+        criadoEm: this.editandoId ? (this.saldos.find(s => s.id === this.editandoId)?.criadoEm || new Date().toISOString()) : new Date().toISOString(),
+        atualizadoEm: new Date().toISOString(),
+        origemModulo: "saldos"
+      };
 
-        // Mantém o resumo do Módulo 02 (Dashboard) sempre sincronizado com a soma real
-        async atualizarDashboardCentral() {
-          const total = this.calcularTotal();
-          try {
-            await db.collection("dashboard_metricas").doc("resumo").set({ saldoTotal: total }, { merge: true });
-          } catch(e) {
-            console.warn("Aviso ao atualizar métrica central:", e);
-          }
-        },
-
-        calcularTotal() {
-          return this.saldos.reduce((acc, curr) => acc + (parseFloat(curr.valor) || 0), 0);
-        },
-
-        async carregarDados() {
-          this.carregando = true;
-          setTimeout(() => { this.carregando = false; }, 300);
-        },
-
-        formatarMoeda(val) {
-          return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+      try {
+        if (this.editandoId) {
+          await db.collection("saldos").doc(this.editandoId).set(saldoData, { merge: true });
+        } else {
+          await db.collection("saldos").add(saldoData);
         }
-      }));
-    });
-  </script>
+        this.resetForm();
+      } catch (e) {
+        console.error("Erro ao salvar saldo:", e);
+        this.mensagemErro = "Erro ao salvar saldo. Verifique a conexão.";
+        setTimeout(() => { this.mensagemErro = ""; }, 5000);
+      } finally {
+        this.carregando = false;
+      }
+    },
+
+    prepararEdicao(saldo) {
+      this.editandoId = saldo.id;
+      this.contaSelecionada = saldo.contaNomeSnapshot;
+      this.valorInput = saldo.valor;
+    },
+
+    cancelarEdicao() {
+      this.resetForm();
+    },
+
+    excluirSaldo(id) {
+      this.modalConfirmacaoAcao = { id, acao: 'excluirSaldo' };
+      this.modalConfirmacaoTitulo = 'Excluir Saldo';
+      this.modalConfirmacaoMensagem = 'Tem certeza que deseja excluir este saldo?';
+      this.modalConfirmacaoAberto = true;
+    },
+
+    fecharModalConfirmacao() {
+      this.modalConfirmacaoAberto = false;
+      this.modalConfirmacaoAcao = null;
+    },
+
+    async executarAcaoConfirmada() {
+      if (!this.modalConfirmacaoAcao) return;
+      
+      const { id, acao } = this.modalConfirmacaoAcao;
+      this.fecharModalConfirmacao();
+      
+      if (acao === 'excluirSaldo') {
+        this.carregando = true;
+        try {
+          await db.collection("saldos").doc(id).delete();
+        } catch (e) {
+          console.error("Erro ao excluir saldo:", e);
+          this.mensagemErro = "Erro ao excluir saldo. Tente novamente.";
+          setTimeout(() => { this.mensagemErro = ""; }, 5000);
+        } finally {
+          this.carregando = false;
+        }
+      }
+    },
+
+    resetForm() {
+      this.editandoId = null;
+      this.contaSelecionada = "";
+      this.valorInput = "";
+    },
+
+    async carregarDados() {
+      this.carregando = true;
+      setTimeout(() => { this.carregando = false; }, 400);
+    },
+
+    formatarMoeda(valor) {
+      return parseFloat(valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    }
+  }));
+});
+</script>
 </body>
 </html>
