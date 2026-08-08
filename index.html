@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>O Tesouro de Erebor - Widget Saldos</title>
+  <title>O Tesouro de Erebor - Widget Saldos & Extratos</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Alpine.js -->
@@ -20,7 +20,7 @@
     [x-cloak] { display: none !important; }
     body { background-color: #0f0d0a; color: #e2d2b4; font-family: 'MedievalSharp', cursive, serif; }
     .font-title { font-family: 'Cinzel Decorative', serif; }
-    .gold-border { border: 1px solid #b8860b; box-shadow: 0 0 10px rgba(184, 134, 11, 0.15); }
+    .gold-border { border: 1px solid #b8860b; box-shadow: 0 0 12px rgba(184, 134, 11, 0.18); }
     .elvish-glow:focus-within, .elvish-glow:hover { box-shadow: 0 0 12px rgba(212, 175, 55, 0.35); border-color: #d4af37; }
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: #0f0d0a; }
@@ -31,114 +31,187 @@
 
 <div class="max-w-4xl mx-auto w-full space-y-5">
 
-<!-- HEADER ÉPICO -->
-<header class="flex justify-between items-center border-b border-[#3a2e1e] pb-3">
-  <div>
-    <h1 class="font-title text-xl md:text-2xl text-[#d4af37] tracking-wider drop-shadow-md">
-      💰 O Tesouro de Erebor
-    </h1>
-    <p class="text-[11px] md:text-xs text-[#a39274]">
-      Gestão de Saldos & Disponibilidade Financeira dos Cofres
-    </p>
-  </div>
-
-  <button @click="carregarDados()"
-    class="bg-[#1c1712] hover:bg-[#2e2316] text-[#d4af37] text-xs font-semibold py-1.5 px-3 rounded border border-[#b8860b]/40 flex items-center gap-1.5 transition cursor-pointer active:scale-95">
-    <span :class="carregando ? 'animate-spin' : ''">⚡</span>
-    <span x-text="carregando ? 'Sincronizando...' : 'Sincronizar'"></span>
-  </button>
-</header>
-
-<!-- CARD TOTALIZADOR CENTRAL -->
-<section class="bg-[#181410] p-4 rounded-lg gold-border flex justify-between items-center">
-  <div>
-    <span class="text-xs text-[#a39274]">💎 Total Disponível em Cofres</span>
-    <div class="text-2xl font-bold text-[#d4af37] mt-1" x-text="formatarMoeda(calcularTotal())"></div>
-  </div>
-  <div class="text-right">
-    <span class="text-[10px] bg-[#2e2316] text-[#a39274] px-2.5 py-1 rounded-full border border-[#b8860b]/30">
-      <span x-text="saldos.length"></span> Cofres Registrados
-    </span>
-  </div>
-</section>
-
-<!-- FORMULÁRIO DE REGISTRO / EDIÇÃO DE SALDO -->
-<section class="bg-[#181410] p-4 rounded-lg gold-border space-y-3">
-  <h2 class="text-sm text-[#d4af37] font-semibold flex items-center justify-between">
-    <span class="flex items-center gap-2">
-      <span>✍️</span>
-      <span x-text="editandoId ? 'Atualizar Saldo do Cofre' : 'Registrar Saldo em Cofre'"></span>
-    </span>
-    <button x-show="editandoId" @click="cancelarEdicao()" class="text-xs text-[#8b0000] hover:underline">Cancelar Edição</button>
-  </h2>
-
-  <div x-show="mensagemErro" x-transition class="text-xs text-red-400 text-center font-bold pt-1 mb-2">
-    ⚠️ <span x-text="mensagemErro"></span>
-  </div>
-
-  <form @submit.prevent="salvarSaldo()" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-    <!-- Seleção do Banco / Conta (Carregado do Módulo 01) -->
+  <!-- HEADER ÉPICO -->
+  <header class="flex justify-between items-center border-b border-[#3a2e1e] pb-3">
     <div>
-      <label class="block text-[11px] text-[#a39274] mb-1">Conta / Banco (Módulo 01)</label>
-      <select x-model="contaSelecionada" required
-        class="w-full bg-[#0f0d0a] border border-[#3a2e1e] text-[#e2d2b4] text-xs rounded p-2.5 outline-none elvish-glow transition">
-        <option value="">Selecione a conta...</option>
-        <template x-for="c in contasCadastradas" :key="c.id">
-          <option :value="c.nome" x-text="c.nome"></option>
-        </template>
-      </select>
+      <h1 class="font-title text-xl md:text-2xl text-[#d4af37] tracking-wider drop-shadow-md">
+        💰 O Tesouro de Erebor
+      </h1>
+      <p class="text-[11px] md:text-xs text-[#a39274]">
+        Gestão de Saldos, Disponibilidade Financeira & Extrato dos Cofres
+      </p>
     </div>
 
-    <!-- Valor do Saldo -->
+    <button @click="carregarDados()"
+      class="bg-[#1c1712] hover:bg-[#2e2316] text-[#d4af37] text-xs font-semibold py-1.5 px-3 rounded border border-[#b8860b]/40 flex items-center gap-1.5 transition cursor-pointer active:scale-95">
+      <span :class="carregando ? 'animate-spin' : ''">⚡</span>
+      <span x-text="carregando ? 'Sincronizando...' : 'Sincronizar'"></span>
+    </button>
+  </header>
+
+  <!-- CARD TOTALIZADOR CENTRAL -->
+  <section class="bg-[#181410] p-4.5 rounded-lg gold-border flex justify-between items-center shadow-lg">
     <div>
-      <label class="block text-[11px] text-[#a39274] mb-1">Valor Atual (R$)</label>
-      <input type="number" step="0.01" x-model="valorInput" placeholder="Ex: 1500.00" required
-        class="w-full bg-[#0f0d0a] border border-[#3a2e1e] text-[#e2d2b4] text-xs rounded p-2.5 outline-none elvish-glow transition">
+      <span class="text-xs text-[#a39274] flex items-center gap-1">
+        <span>💎</span> Tesouro Disponível em Cofres
+      </span>
+      <div class="text-2xl md:text-3xl font-bold text-[#d4af37] mt-1 tracking-wide" x-text="formatarMoeda(calcularTotal())"></div>
+    </div>
+    <div class="text-right">
+      <span class="text-[10px] md:text-xs bg-[#2e2316] text-[#a39274] px-3 py-1.5 rounded-full border border-[#b8860b]/30 font-bold">
+        <span class="text-[#d4af37]" x-text="saldos.length"></span> Cofres Ativos
+      </span>
+    </div>
+  </section>
+
+  <!-- FORMULÁRIO DE REGISTRO / EDIÇÃO DE SALDO -->
+  <section class="bg-[#181410] p-4 rounded-lg gold-border space-y-3">
+    <h2 class="text-sm text-[#d4af37] font-semibold flex items-center justify-between">
+      <span class="flex items-center gap-2">
+        <span>✍️</span>
+        <span x-text="editandoId ? 'Atualizar Saldo do Cofre' : 'Registrar Saldo em Cofre'"></span>
+      </span>
+      <button x-show="editandoId" @click="cancelarEdicao()" class="text-xs text-[#8b0000] hover:underline">Cancelar Edição</button>
+    </h2>
+
+    <div x-show="mensagemErro" x-transition class="text-xs text-red-400 text-center font-bold pt-1 mb-2">
+      ⚠️ <span x-text="mensagemErro"></span>
     </div>
 
-    <!-- Botão Ação -->
-    <div class="flex items-end">
-      <button type="submit"
-        class="w-full bg-[#b8860b] hover:bg-[#d4af37] text-[#0f0d0a] font-bold py-2.5 px-4 text-xs rounded transition duration-200 cursor-pointer active:scale-95">
-        <span x-text="editandoId ? 'Atualizar Saldo' : '⚔️ Guardar no Cofre'"></span>
-      </button>
-    </div>
-  </form>
-
-  <!-- Alerta se não houver contas no Módulo 01 -->
-  <div x-show="contasCadastradas.length === 0" class="text-xs text-amber-400 text-center font-bold pt-1">
-    💡 Nenhuma conta cadastrada na Central de Entidades (Módulo 01). Cadastre uma lá para selecionar aqui.
-  </div>
-</section>
-
-<!-- LISTA DE SALDOS REGISTRADOS -->
-<section class="bg-[#14100c] p-4 rounded-lg border border-[#2e2316] space-y-2.5">
-  <h2 class="text-sm text-[#d4af37] font-semibold flex items-center justify-between border-b border-[#2e2316] pb-1.5">
-    <span class="flex items-center gap-2">💰 Cofres Ativos</span>
-    <span class="text-[10px] bg-[#2e2316] text-[#a39274] px-2 py-0.5 rounded-full" x-text="saldos.length"></span>
-  </h2>
-
-  <div class="space-y-2 text-xs max-h-60 overflow-y-auto pr-1">
-    <template x-for="saldo in saldos" :key="saldo.id">
-      <div class="bg-[#1c1712] p-2.5 rounded border-l-2 border-[#b8860b] flex justify-between items-center gap-2">
-        <div class="flex items-center gap-2 overflow-hidden">
-          <span class="text-[10px] bg-[#2e2316] text-[#a39274] px-2 py-0.5 rounded whitespace-nowrap" x-text="saldo.contaNomeSnapshot"></span>
-          <span class="text-[#e2d2b4] truncate font-bold" x-text="formatarMoeda(saldo.valor)"></span>
-        </div>
-
-        <div class="flex items-center gap-2 shrink-0">
-          <button @click="prepararEdicao(saldo)" title="Editar" class="text-[#d4af37] hover:text-[#fff] text-xs font-bold">✎</button>
-          <button @click="excluirSaldo(saldo.id)" title="Excluir" class="text-[#8b0000] hover:text-[#ff4500] text-xs font-bold">✕</button>
-        </div>
+    <form @submit.prevent="salvarSaldo()" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <!-- Seleção da Conta -->
+      <div>
+        <label class="block text-[11px] text-[#a39274] mb-1">Conta / Banco (Módulo 01)</label>
+        <select x-model="contaSelecionada" required
+          class="w-full bg-[#0f0d0a] border border-[#3a2e1e] text-[#e2d2b4] text-xs rounded p-2.5 outline-none elvish-glow transition">
+          <option value="">Selecione a conta...</option>
+          <template x-for="c in contasCadastradas" :key="c.id">
+            <option :value="c.nome" x-text="c.nome"></option>
+          </template>
+        </select>
       </div>
-    </template>
 
-    <template x-if="saldos.length === 0">
-      <p class="text-xs text-[#6e5d4f] italic py-2 text-center">Nenhum saldo registrado. Comece a guardar seu tesouro!</p>
-    </template>
+      <!-- Valor do Saldo -->
+      <div>
+        <label class="block text-[11px] text-[#a39274] mb-1">Valor Atual (R$)</label>
+        <input type="number" step="0.01" x-model="valorInput" placeholder="Ex: 1500.00" required
+          class="w-full bg-[#0f0d0a] border border-[#3a2e1e] text-[#e2d2b4] text-xs rounded p-2.5 outline-none elvish-glow transition">
+      </div>
+
+      <!-- Botão Ação -->
+      <div class="flex items-end">
+        <button type="submit"
+          class="w-full bg-[#b8860b] hover:bg-[#d4af37] text-[#0f0d0a] font-bold py-2.5 px-4 text-xs rounded transition duration-200 cursor-pointer active:scale-95">
+          <span x-text="editandoId ? 'Atualizar Saldo' : '⚔️ Guardar no Cofre'"></span>
+        </button>
+      </div>
+    </form>
+
+    <div x-show="contasCadastradas.length === 0" class="text-xs text-amber-400 text-center font-bold pt-1">
+      💡 Nenhuma conta cadastrada na Central de Entidades (Módulo 01). Cadastre uma lá para selecionar aqui.
+    </div>
+  </section>
+
+  <!-- PAINEL VISUAL DE COFRES & EXTRATOS -->
+  <section class="bg-[#14100c] p-4 rounded-lg border border-[#2e2316] space-y-3">
+    <h2 class="text-sm text-[#d4af37] font-semibold flex items-center justify-between border-b border-[#2e2316] pb-2">
+      <span class="flex items-center gap-2">🏦 Visão Geral dos Cofres</span>
+      <span class="text-[10px] text-[#a39274]">Clique em "Extrato" para ver lançamentos</span>
+    </h2>
+
+    <!-- GRID DE CARDS DOS COFRES -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <template x-for="saldo in saldos" :key="saldo.id">
+        <div class="bg-[#1c1712] p-3.5 rounded-lg border border-[#3a2e1e] hover:border-[#b8860b]/60 transition flex flex-col justify-between space-y-3">
+          
+          <div class="flex justify-between items-start">
+            <div class="flex items-center gap-2">
+              <span class="p-2 rounded bg-[#2e2316] text-amber-400 text-base">🏦</span>
+              <div>
+                <h3 class="font-bold text-sm text-[#e2d2b4]" x-text="saldo.contaNomeSnapshot"></h3>
+                <span class="text-[9px] text-[#6e5d4f]" x-text="'Atualizado: ' + formatarDataHora(saldo.atualizadoEm)"></span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              <button @click="prepararEdicao(saldo)" title="Editar Saldo" class="text-[#d4af37] hover:text-[#fff] text-xs font-bold p-1">✎</button>
+              <button @click="excluirSaldo(saldo.id)" title="Excluir Cofre" class="text-[#8b0000] hover:text-[#ff4500] text-xs font-bold p-1">✕</button>
+            </div>
+          </div>
+
+          <div class="bg-[#0f0d0a] p-2.5 rounded border border-[#2e2316] flex justify-between items-center">
+            <span class="text-[10px] text-[#a39274]">Saldo em Cofre:</span>
+            <span class="text-base font-bold text-[#d4af37]" x-text="formatarMoeda(saldo.valor)"></span>
+          </div>
+
+          <div class="pt-1 flex justify-end">
+            <button @click="abrirExtrato(saldo)" 
+              class="w-full bg-[#2e2316] hover:bg-[#3a2e1e] text-[#d4af37] border border-[#b8860b]/30 py-1.5 px-3 rounded text-xs font-bold transition flex items-center justify-center gap-1.5 active:scale-95">
+              <span>📜</span>
+              <span>Ver Extrato do Cofre</span>
+            </button>
+          </div>
+
+        </div>
+      </template>
+
+      <template x-if="saldos.length === 0">
+        <div class="col-span-full bg-[#1c1712] p-6 rounded-lg border border-[#2e2316] text-center text-xs text-[#6e5d4f] italic">
+          Nenhum cofre com saldo cadastrado no momento. Adicione um valor acima para visualizar seus saldos e extratos.
+        </div>
+      </template>
+    </div>
+  </section>
+
+</div>
+
+<!-- MODAL DE EXTRATO DO COFRE -->
+<div x-show="modalExtratoAberto" x-cloak class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+  <div class="bg-[#181410] border border-[#b8860b] p-5 rounded-lg max-w-lg w-full space-y-4 shadow-2xl max-h-[85vh] flex flex-col justify-between">
+    
+    <div class="flex justify-between items-center border-b border-[#3a2e1e] pb-2">
+      <div>
+        <span class="text-[10px] text-[#a39274] uppercase tracking-wider">Extrato Detalhado</span>
+        <h3 class="font-title text-base text-[#d4af37]" x-text="'📜 ' + (cofreEmFoco?.contaNomeSnapshot || 'Cofre')"></h3>
+      </div>
+      <button @click="modalExtratoAberto = false" class="text-[#8b0000] hover:text-red-500 font-bold text-sm">✕</button>
+    </div>
+
+    <!-- RESUMO DO COFRE NO MODAL -->
+    <div class="bg-[#0f0d0a] p-3 rounded border border-[#2e2316] flex justify-between items-center text-xs">
+      <span class="text-[#a39274]">Saldo Registrado:</span>
+      <span class="font-bold text-[#d4af37] text-sm" x-text="formatarMoeda(cofreEmFoco?.valor || 0)"></span>
+    </div>
+
+    <!-- LISTA DE MOVIMENTAÇÕES DO EXTRATO -->
+    <div class="space-y-2 text-xs overflow-y-auto pr-1 flex-1 max-h-64">
+      <template x-for="item in extratoFiltrado" :key="item.id">
+        <div class="bg-[#1c1712] p-2.5 rounded border border-[#2e2316] flex justify-between items-center">
+          <div class="space-y-0.5">
+            <div class="font-bold text-[#e2d2b4]" x-text="item.nomeItem || item.descricao || 'Lançamento'"></div>
+            <div class="text-[10px] text-[#a39274] flex gap-2">
+              <span>🏬 <span x-text="item.loja || 'N/A'"></span></span>
+              <span>📅 <span x-text="formatarData(item.dataCompra || item.criadoEm)"></span></span>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="font-bold text-red-400" x-text="'- ' + formatarMoeda(item.valorTotal || item.valor || 0)"></span>
+            <div class="text-[9px] text-[#6e5d4f]" x-text="item.pagamento || 'Débito/Conta'"></div>
+          </div>
+        </div>
+      </template>
+
+      <template x-if="extratoFiltrado.length === 0">
+        <p class="text-xs text-[#6e5d4f] italic py-6 text-center">
+          Nenhuma movimentação ou compra vinculada diretamente a este cofre encontrada nos registros do Livro de Bree.
+        </p>
+      </template>
+    </div>
+
+    <button @click="modalExtratoAberto = false" class="w-full bg-[#2e2316] hover:bg-[#3a2e1e] text-[#d4af37] font-bold py-2 text-xs rounded transition mt-2">
+      Fechar Extrato
+    </button>
   </div>
-</section>
-
 </div>
 
 <!-- MODAL DE CONFIRMAÇÃO DE EXCLUSÃO -->
@@ -178,19 +251,26 @@ document.addEventListener("alpine:init", () => {
   Alpine.data("saldosApp", () => ({
     saldos: [],
     contasCadastradas: [],
+    compras: [],
     contaSelecionada: "",
     valorInput: "",
     editandoId: null,
     carregando: false,
     mensagemErro: "",
+    
+    // Modais
     modalConfirmacaoAberto: false,
     modalConfirmacaoTitulo: "",
     modalConfirmacaoMensagem: "",
     modalConfirmacaoAcao: null,
+    
+    modalExtratoAberto: false,
+    cofreEmFoco: null,
 
     init() {
       this.escutarContasCadastradas();
       this.escutarSaldos();
+      this.escutarCompras();
     },
 
     escutarContasCadastradas() {
@@ -203,6 +283,30 @@ document.addEventListener("alpine:init", () => {
       db.collection("saldos").onSnapshot((snapshot) => {
         this.saldos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       }, (err) => console.warn("Erro ao carregar saldos:", err));
+    },
+
+    escutarCompras() {
+      db.collection("compras").onSnapshot((snapshot) => {
+        this.compras = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      }, (err) => console.warn("Erro ao carregar extrato de compras:", err));
+    },
+
+    get extratoFiltrado() {
+      if (!this.cofreEmFoco || !this.cofreEmFoco.contaNomeSnapshot) return [];
+      const nomeLower = this.cofreEmFoco.contaNomeSnapshot.trim().toLowerCase();
+      const idStr = this.cofreEmFoco.contaId || this.cofreEmFoco.id;
+
+      return this.compras.filter(c => {
+        if (c.contaId && c.contaId === idStr) return true;
+        if (c.pagamento && c.pagamento.trim().toLowerCase().includes(nomeLower)) return true;
+        if (c.contaNomeSnapshot && c.contaNomeSnapshot.trim().toLowerCase().includes(nomeLower)) return true;
+        return false;
+      });
+    },
+
+    abrirExtrato(saldo) {
+      this.cofreEmFoco = saldo;
+      this.modalExtratoAberto = true;
     },
 
     calcularTotal() {
@@ -252,8 +356,8 @@ document.addEventListener("alpine:init", () => {
 
     excluirSaldo(id) {
       this.modalConfirmacaoAcao = { id, acao: 'excluirSaldo' };
-      this.modalConfirmacaoTitulo = 'Excluir Saldo';
-      this.modalConfirmacaoMensagem = 'Tem certeza que deseja excluir este saldo?';
+      this.modalConfirmacaoTitulo = 'Excluir Saldo do Cofre';
+      this.modalConfirmacaoMensagem = 'Tem certeza que deseja excluir o registro de saldo deste cofre?';
       this.modalConfirmacaoAberto = true;
     },
 
@@ -295,6 +399,23 @@ document.addEventListener("alpine:init", () => {
 
     formatarMoeda(valor) {
       return parseFloat(valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    },
+
+    formatarData(d) {
+      if (!d) return 'S/D';
+      const limpo = d.split('T')[0];
+      const partes = limpo.split('-');
+      return partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : d;
+    },
+
+    formatarDataHora(d) {
+      if (!d) return 'N/A';
+      try {
+        const date = new Date(d);
+        return date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      } catch {
+        return 'N/A';
+      }
     }
   }));
 });
